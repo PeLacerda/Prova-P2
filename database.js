@@ -16,8 +16,8 @@ export async function initDB() {
 
 export async function adicionarPessoa(nome, email, password) {
   await db.runAsync(
-    'INSERT INTO pessoas (nome, email, password) VALUES (?, ?);',
-    [nome, email]
+    'INSERT INTO pessoas (nome, email, password) VALUES (?, ?, ?);',
+    [nome, email, password]
   );
 };
 
