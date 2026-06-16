@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 export default function App() {
 // tela atual
@@ -80,6 +81,31 @@ const dbRef = useRef({
     setTimeout(() => setMessage(''), 3000);
   }
 
+  // solicita autenticação biométrica (digital, face ou PIN)
+  async function requestBiometricAuth(promptMessage) {
+    // verifica se o hardware suporta biometria
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    if (!compatible) {
+      // dispositivo sem hardware biométrico — permite prosseguir
+      return true;
+    }
+
+    // verifica se o usuário tem biometria cadastrada no dispositivo
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    if (!enrolled) {
+      // sem biometria cadastrada — permite prosseguir
+      return true;
+    }
+
+    // dispara o prompt biométrico
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage,
+      fallbackLabel: 'Usar PIN',
+    });
+
+    return result.success;
+  }
+
   // cadastro usando adicionarPessoa(nome, email, password)
   async function handleRegister() {
     if (!name || !email || !password) {
@@ -94,6 +120,13 @@ const dbRef = useRef({
       return;
     }
 
+    // confirma identidade antes de salvar o cadastro
+    const autenticado = await requestBiometricAuth('Confirme sua identidade para concluir o cadastro');
+    if (!autenticado) {
+      showMessage('Autenticação necessária para cadastrar');
+      return;
+    }
+
     await dbRef.current.adicionarPessoa(name, email, password);
     setName(''); setEmail(''); setPassword('');
     showMessage('Cadastro concluído!');
@@ -105,6 +138,13 @@ const dbRef = useRef({
   async function handleLogin() {
     if (!email || !password) {
       showMessage('Preencha email e senha');
+      return;
+    }
+
+    // confirma identidade antes de verificar as credenciais
+    const autenticado = await requestBiometricAuth('Confirme sua identidade para entrar');
+    if (!autenticado) {
+      showMessage('Autenticação necessária para entrar');
       return;
     }
 
